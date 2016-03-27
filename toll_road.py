@@ -61,13 +61,14 @@ class TollRoad(object):
                 'value': None}
         payload = {
             'key': self.api_key,
+            'departure_time': 'now',
             'origins': ORIGIN,
             'destinations': DEST
         }
         base_url = 'https://maps.googleapis.com/maps/api/distancematrix/json'
         r = requests.get(base_url, params=payload)
         resp = json.loads(r.text)
-        value = resp['rows'][0]['elements'][0]['duration']['value']
+        value = resp['rows'][0]['elements'][0]['duration_in_traffic']['value']
         data['value'] = value
         self.save_to_csv(data)
 
