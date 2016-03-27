@@ -8,7 +8,7 @@ import json
 import requests
 from BeautifulSoup import BeautifulSoup
 
-from pytools.asynx import scheduled, threaded
+from pytools.asynx import scheduled
 
 __author__ = 'sekely'
 
@@ -19,7 +19,7 @@ ORIGIN = '32.000955, 34.845297'
 
 
 class TollRoad(object):
-    headers = ['timestamp', 'key', 'value']
+    headers = ['timestamp', 'price', 'traffic']
 
     def __init__(self, options):
         self.csv_file = options.filename
@@ -41,24 +41,13 @@ class TollRoad(object):
             writer = csv.DictWriter(f, self.headers)
             writer.writerow(data)
 
-    @threaded(block=False)
-    @scheduled(period=60)
     def get_price(self):
-        data = {'timestamp': str(datetime.datetime.now()),
-                'key': 'price',
-                'value': None}
         r = requests.get('https://www.fastlane.co.il/mobile.aspx')
         parsed_html = BeautifulSoup(r.content)
         price = parsed_html.find('span', attrs={'id': 'lblPrice'}).text
-        data['value'] = int(price)
-        self.save_to_csv(data)
+        return int(price)
 
-    @threaded(block=False)
-    @scheduled(period=60)
     def get_traffic(self):
-        data = {'timestamp': str(datetime.datetime.now()),
-                'key': 'traffic',
-                'value': None}
         payload = {
             'key': self.api_key,
             'departure_time': 'now',
@@ -69,13 +58,20 @@ class TollRoad(object):
         r = requests.get(base_url, params=payload)
         resp = json.loads(r.text)
         value = resp['rows'][0]['elements'][0]['duration_in_traffic']['value']
-        data['value'] = value
-        self.save_to_csv(data)
+        return int(value)
 
+    @scheduled(60)
     def start_sampling(self):
-        self.get_price()
+        ts = str(datetime.datetime.now())
+        price = self.get_price()
         if self.api_key:
-            self.get_traffic()
+            traffic = self.get_traffic()
+        else:
+            traffic = None
+        data = {'timestamp': ts,
+                'price': price,
+                'traffic': traffic}
+        self.save_to_csv(data)
 
 
 def get_parser():
@@ -86,13 +82,14 @@ def get_parser():
     parser.add_option('-a', '--append', dest='append', help='append to file', action="store_true")
     return parser.parse_args()
 
+
 if __name__ == '__main__':
     try:
         option, _ = get_parser()
         print "starting toll road server"
         tr = TollRoad(option)
         tr.start_sampling()
-    except Exception as e:
+    except KeyboardInterrupt as e:
         print "shutting down sampling"
         sys.exit(0)
     sys.exit(1)
