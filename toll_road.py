@@ -10,6 +10,8 @@ from BeautifulSoup import BeautifulSoup
 
 from pytools.asynx import scheduled
 
+import pandas as pd
+
 __author__ = 'sekely'
 
 requests.packages.urllib3.disable_warnings()
@@ -74,6 +76,22 @@ class TollRoad(object):
         self.save_to_csv(data)
 
 
+class Analyzer(object):
+
+    def __init__(self, f_name):
+        df = pd.read_csv(f_name)
+        df.index = pd.DatetimeIndex(df['timestamp'])
+        df.drop('timestamp', 1, inplace=True)
+        df['traffic'] = df['traffic'].apply(lambda x: x / 60.)
+        self.df = df.resample('T').mean()
+
+    def plot(self, kind='line'):
+        self.df.plot(kind=kind).figure.show()
+
+    def summary(self):
+        return self.df.describe()
+
+
 def get_parser():
     parser = OptionParser()
     parser.add_option('-f', '--file', dest='filename', default=DEFAULT_CSV,
@@ -84,9 +102,9 @@ def get_parser():
 
 
 if __name__ == '__main__':
+    option, _ = get_parser()
+    print "starting toll road server"
     try:
-        option, _ = get_parser()
-        print "starting toll road server"
         tr = TollRoad(option)
         tr.start_sampling()
     except KeyboardInterrupt as e:
