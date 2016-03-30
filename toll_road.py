@@ -11,6 +11,8 @@ from BeautifulSoup import BeautifulSoup
 from pytools.asynx import scheduled
 
 import pandas as pd
+import matplotlib.pylab as plt
+import statsmodels.api as sm
 
 __author__ = 'sekely'
 
@@ -77,13 +79,37 @@ class TollRoad(object):
 
 
 class Analyzer(object):
-
     def __init__(self, f_name):
-        df = pd.read_csv(f_name)
-        df.index = pd.DatetimeIndex(df['timestamp'])
-        df.drop('timestamp', 1, inplace=True)
+        self.f_name = f_name
+
+    def extract_data(self):
+        dateparse = lambda dates: pd.datetime.strptime(dates, '%Y-%m-%d %H:%M:%S.%f')
+        df = pd.read_csv(self.f_name, parse_dates='timestamp', index_col='timestamp', date_parser=dateparse)
         df['traffic'] = df['traffic'].apply(lambda x: x / 60.)
         self.df = df.resample('T').mean()
+
+    def test_stationarity(self, col):
+        # Determing rolling statistics
+        ts = self.df[col]
+        rolmean = ts.rolling(window=12).mean()
+        rolstd = ts.rolling(window=12).std()
+
+        # Plot rolling statistics:
+        orig = plt.plot(ts, color='blue', label='Original')
+        mean = plt.plot(rolmean, color='red', label='Rolling Mean')
+        std = plt.plot(rolstd, color='black', label='Rolling Std')
+        plt.legend(loc='best')
+        plt.title('Rolling Mean & Standard Deviation')
+        plt.show(block=False)
+
+        # Perform Dickey-Fuller test:
+        print 'Results of Dickey-Fuller Test:'
+        dftest = sm.tsa.adfuller(ts.dropna(), autolag='AIC')
+        dfoutput = pd.Series(dftest[0:4],
+                             index=['Test Statistic', 'p-value', '#Lags Used', 'Number of Observations Used'])
+        for key, value in dftest[4].items():
+            dfoutput['Critical Value (%s)' % (key,)] = value
+        print dfoutput
 
     def plot(self, kind='line'):
         self.df.plot(kind=kind).figure.show()
