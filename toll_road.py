@@ -115,26 +115,19 @@ class Analyzer(object):
             dfoutput['Critical Value (%s)' % (key,)] = value
         print dfoutput
 
-    def simple_plot(self, kind='line'):
-        self.df.plot(kind=kind).figure.show()
-
-    def rolling_mean(self, window=10, plot=True):
+    def rolling_mean(self, window=10):
         means = self.df.rolling(window=window).mean()
         ewm_means = self.df.ewm(halflife=window).mean()
         means.columns = ['mean-%s' % col for col in means.columns]
         ewm_means.columns = ['ewm-%s' % col for col in ewm_means.columns]
         ts = pd.concat([means, ewm_means], axis=1)
-        if plot:
-            ts.plot().figure.show(False)
         return ts
 
-    def filter(self, lamb=1e5, plot=True):
+    def filter(self, lamb=1e5):
         cycle, trend = sm.tsa.filters.hpfilter(self.df, lamb=lamb)
         cycle.columns = ['%s-cycle' % col for col in cycle.columns]
         trend.columns = ['%s-trend' % col for col in trend.columns]
         ts = pd.concat([cycle, trend], axis=1)
-        if plot:
-            ts.plot().figure.show(False)
         return ts
 
     @staticmethod
