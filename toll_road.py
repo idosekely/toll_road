@@ -137,6 +137,37 @@ class Analyzer(object):
             ts.plot().figure.show(False)
         return ts
 
+    @staticmethod
+    def plot(ts):
+        fig, ax = plt.subplots()
+        lined = dict()
+
+        ax.set_title('Click on legend line to toggle line on/off')
+        lines = [ax.plot(ts[col], label=col) for col in ts.columns]
+        leg = ax.legend(loc='best')
+
+        for legline, origline in zip(leg.get_lines(), lines):
+            legline.set_picker(5)  # 5 pts tolerance
+            lined[legline] = origline[0]
+
+        def onpick(event):
+            # on the pick event, find the orig line corresponding to the
+            # legend proxy line, and toggle the visibility
+            legline = event.artist
+            origline = lined[legline]
+            vis = not origline.get_visible()
+            origline.set_visible(vis)
+            # Change the alpha on the line in the legend so we can see what lines
+            # have been toggled
+            if vis:
+                legline.set_alpha(1.0)
+            else:
+                legline.set_alpha(0.2)
+            fig.canvas.draw()
+
+        fig.canvas.mpl_connect('pick_event', onpick)
+        plt.show(False)
+
     def summary(self):
         return self.df.describe()
 
