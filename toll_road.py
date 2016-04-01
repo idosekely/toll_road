@@ -115,19 +115,27 @@ class Analyzer(object):
             dfoutput['Critical Value (%s)' % (key,)] = value
         print dfoutput
 
-    def plot(self, kind='line'):
+    def simple_plot(self, kind='line'):
         self.df.plot(kind=kind).figure.show()
 
-    def rolling_mean(self, plot=True, window=10, cols=None):
-        cols = list(self.df.columns) if not cols else cols
-        means = [('avg-%s' % col, self.df[col].rolling(window=window).mean()) for col in cols]
-        ewm_means = [('ewm-avg-%s' % col, self.df[col].ewm(window).mean()) for col in cols]
+    def rolling_mean(self, window=10, plot=True):
+        means = self.df.rolling(window=window).mean()
+        ewm_means = self.df.ewm(halflife=window).mean()
+        means.columns = ['mean-%s' % col for col in means.columns]
+        ewm_means.columns = ['ewm-%s' % col for col in ewm_means.columns]
+        ts = pd.concat([means, ewm_means], axis=1)
         if plot:
-            mean_plot = [plt.plot(roll, label=label) for label, roll in means]
-            exp_mean_plot = [plt.plot(roll, label=label) for label, roll in ewm_means]
-            plt.legend(loc='best')
-            plt.show()
-        return pd.concat([mean[1] for mean in means], axis=1), pd.concat([mean[1] for mean in ewm_means], axis=1)
+            ts.plot().figure.show(False)
+        return ts
+
+    def filter(self, lamb=1e5, plot=True):
+        cycle, trend = sm.tsa.filters.hpfilter(self.df, lamb=lamb)
+        cycle.columns = ['%s-cycle' % col for col in cycle.columns]
+        trend.columns = ['%s-trend' % col for col in trend.columns]
+        ts = pd.concat([cycle, trend], axis=1)
+        if plot:
+            ts.plot().figure.show(False)
+        return ts
 
     def summary(self):
         return self.df.describe()
