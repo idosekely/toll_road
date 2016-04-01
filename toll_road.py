@@ -82,11 +82,15 @@ class Analyzer(object):
     def __init__(self, f_name):
         self.f_name = f_name
 
-    def extract_data(self):
+    def extract_data(self, drop_na=False):
         dateparse = lambda dates: pd.datetime.strptime(dates, '%Y-%m-%d %H:%M:%S.%f')
         df = pd.read_csv(self.f_name, parse_dates='timestamp', index_col='timestamp', date_parser=dateparse)
         df['traffic'] = df['traffic'].apply(lambda x: x / 60.)
         self.df = df.resample('T').mean()
+        if drop_na:
+            self.df.dropna(inline=True)
+        else:
+            self.df.interpolate(inplace=True)
 
     def test_stationarity(self, col):
         # Determing rolling statistics
@@ -113,6 +117,17 @@ class Analyzer(object):
 
     def plot(self, kind='line'):
         self.df.plot(kind=kind).figure.show()
+
+    def rolling_mean(self, plot=True, window=10, cols=None):
+        cols = list(self.df.columns) if not cols else cols
+        means = [('avg-%s' % col, self.df[col].rolling(window=window).mean()) for col in cols]
+        ewm_means = [('ewm-avg-%s' % col, self.df[col].ewm(window).mean()) for col in cols]
+        if plot:
+            mean_plot = [plt.plot(roll, label=label) for label, roll in means]
+            exp_mean_plot = [plt.plot(roll, label=label) for label, roll in ewm_means]
+            plt.legend(loc='best')
+            plt.show()
+        return pd.concat([mean[1] for mean in means], axis=1), pd.concat([mean[1] for mean in ewm_means], axis=1)
 
     def summary(self):
         return self.df.describe()
