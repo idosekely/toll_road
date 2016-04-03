@@ -126,29 +126,6 @@ class Analyzer(object):
         else:
             self.df.interpolate(inplace=True)
 
-    def test_stationarity(self, col):
-        # Determing rolling statistics
-        ts = self.df[col]
-        rolmean = ts.rolling(window=12).mean()
-        rolstd = ts.rolling(window=12).std()
-
-        # Plot rolling statistics:
-        orig = plt.plot(ts, color='blue', label='Original')
-        mean = plt.plot(rolmean, color='red', label='Rolling Mean')
-        std = plt.plot(rolstd, color='black', label='Rolling Std')
-        plt.legend(loc='best')
-        plt.title('Rolling Mean & Standard Deviation')
-        plt.show(block=False)
-
-        # Perform Dickey-Fuller test:
-        print 'Results of Dickey-Fuller Test:'
-        dftest = sm.tsa.adfuller(ts.dropna(), autolag='AIC')
-        dfoutput = pd.Series(dftest[0:4],
-                             index=['Test Statistic', 'p-value', '#Lags Used', 'Number of Observations Used'])
-        for key, value in dftest[4].items():
-            dfoutput['Critical Value (%s)' % (key,)] = value
-        print dfoutput
-
     def rolling_mean(self, window=10):
         means = self.df.rolling(window=window).mean()
         ewm_means = self.df.ewm(halflife=window).mean()
