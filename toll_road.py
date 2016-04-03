@@ -40,7 +40,7 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-class TollRoad(object):
+class Collector(object):
     __metaclass__ = Singleton
     headers = ['timestamp', 'price', 'traffic']
     started = False
@@ -104,13 +104,17 @@ class TollRoad(object):
     def do_start(self, *args, **kwargs):
         self.started = True
         self.start_sampling()
+        return 'collector started\n'
 
     def do_stop(self, *args, **kwargs):
         self.started = False
+        return 'stopping collector\n'
 
     def do_config(self, *args, **kwargs):
         for key, val in kwargs.iteritems():
             setattr(self, key, val[0])
+        return 'finished collector config\n'
+
 
     def do_describe(self, *args, **kwargs):
         ret = {'csv_file': self.csv_file,
@@ -201,22 +205,21 @@ class Analyzer(object):
         return json.dumps(ret)
 
 
-ar = Analyzer()
-tr = TollRoad()
+_ar = Analyzer()
+_cr = Collector()
 
 
-@app.route('/server/<command>')
-def server(command):
+@app.route('/collector/<command>')
+def collector(command):
     command = command.replace('-', '_')
-    cmd = getattr(tr, 'do_%s' % command)
-    cmd(**request.args)
-    return 'server (%s) done\n' % command
+    cmd = getattr(_cr, 'do_%s' % command)
+    return cmd(**request.args)
 
 
 @app.route('/analyzer/<command>')
 def analyzer(command):
     command = command.replace('-', '_')
-    cmd = getattr(ar, 'do_%s' % command)
+    cmd = getattr(_ar, 'do_%s' % command)
     return cmd(**request.args)
 
 if __name__ == '__main__':
