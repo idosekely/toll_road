@@ -2,17 +2,20 @@
 import datetime
 import csv
 import sys
-from optparse import OptionParser
+import os
 import json
 
 import requests
 from BeautifulSoup import BeautifulSoup
 
-from pytools.asynx import scheduled
+from pytools.asynx import scheduled, threaded
 
 import pandas as pd
 import matplotlib.pylab as plt
 import statsmodels.api as sm
+
+from flask import Flask
+from flask import request
 
 __author__ = 'sekely'
 
@@ -21,20 +24,38 @@ DEFAULT_CSV = '/tmp/toll_road.csv'
 DEST = '32.051070, 34.785303'
 ORIGIN = '32.000955, 34.845297'
 
+app = Flask(__name__)
+
+
+class ServerStopped(Exception):
+    pass
+
+
+class Singleton(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
 
 class TollRoad(object):
+    __metaclass__ = Singleton
     headers = ['timestamp', 'price', 'traffic']
+    started = False
 
-    def __init__(self, options):
-        self.csv_file = options.filename
-        self.api_key = options.api_key
-        if not options.append:
-            self.create_csv_file()
+    _csv = None
+    csv_file = property(lambda self: self._csv)
+    api_key = None
 
-    def create_csv_file(self):
-        with open(self.csv_file, 'w') as f:
-            writer = csv.DictWriter(f, self.headers)
-            writer.writeheader()
+    @csv_file.setter
+    def csv_file(self, csv_file):
+        if not os.path.isfile(csv_file):
+            self._csv = csv_file
+            with open(self.csv_file, 'w') as f:
+                writer = csv.DictWriter(f, self.headers)
+                writer.writeheader()
 
     def save_to_csv(self, data=None):
         if not data:
@@ -64,8 +85,11 @@ class TollRoad(object):
         value = resp['rows'][0]['elements'][0]['duration_in_traffic']['value']
         return int(value)
 
+    @threaded(block=False)
     @scheduled(60)
     def start_sampling(self):
+        if not self.started:
+            raise ServerStopped()
         ts = str(datetime.datetime.now())
         price = self.get_price()
         if self.api_key:
@@ -77,14 +101,24 @@ class TollRoad(object):
                 'traffic': traffic}
         self.save_to_csv(data)
 
+    def do_start(self, *args, **kwargs):
+        self.started = True
+        self.start_sampling()
+
+    def do_stop(self, *args, **kwargs):
+        self.started = False
+
+    def do_config(self, *args, **kwargs):
+        for key, val in kwargs.iteritems():
+            setattr(self, key, val[0])
+
 
 class Analyzer(object):
-    def __init__(self, f_name):
-        self.f_name = f_name
+    csv_file = None
 
     def extract_data(self, drop_na=False):
         dateparse = lambda dates: pd.datetime.strptime(dates, '%Y-%m-%d %H:%M:%S.%f')
-        df = pd.read_csv(self.f_name, parse_dates='timestamp', index_col='timestamp', date_parser=dateparse)
+        df = pd.read_csv(self.csv_file, parse_dates='timestamp', index_col='timestamp', date_parser=dateparse)
         df['traffic'] = df['traffic'].apply(lambda x: x / 60.)
         self.df = df.resample('T').mean()
         if drop_na:
@@ -161,25 +195,46 @@ class Analyzer(object):
         fig.canvas.mpl_connect('pick_event', onpick)
         plt.show(False)
 
-    def summary(self):
-        return self.df.describe()
+    def do_summary(self, *args, **kwargs):
+        return self.df.describe().to_json()
+
+    def do_filter(self, *args, **kwargs):
+        return self.filter(**kwargs).to_json(date_format='iso')
+
+    def do_rolling_mean(self, *args, **kwargs):
+        return self.rolling_mean(**kwargs).to_json(date_format='iso')
+
+    def do_refresh(self, *args, **kwargs):
+        self.extract_data()
+        return "analyzer refreshed\n"
+
+    def do_config(self, *args, **kwargs):
+        for key, val in kwargs.iteritems():
+            setattr(self, key, val[0])
+        return 'finished analyzer config\n'
+
+ar = Analyzer()
+tr = TollRoad()
 
 
-def get_parser():
-    parser = OptionParser()
-    parser.add_option('-f', '--file', dest='filename', default=DEFAULT_CSV,
-                      help='filename to which to save the samples')
-    parser.add_option('-g', '--google-api-key', dest='api_key', help='use google api for traffic smapling')
-    parser.add_option('-a', '--append', dest='append', help='append to file', action="store_true")
-    return parser.parse_args()
+@app.route('/server/<command>')
+def server(command):
+    command = command.replace('-', '_')
+    cmd = getattr(tr, 'do_%s' % command)
+    cmd(**request.args)
+    return 'server (%s) done\n' % command
 
+
+@app.route('/analyzer/<command>')
+def analyzer(command):
+    command = command.replace('-', '_')
+    cmd = getattr(ar, 'do_%s' % command)
+    return cmd(**request.args)
 
 if __name__ == '__main__':
-    option, _ = get_parser()
     print "starting toll road server"
     try:
-        tr = TollRoad(option)
-        tr.start_sampling()
+        app.run()
     except KeyboardInterrupt as e:
         print "shutting down sampling"
         sys.exit(0)
