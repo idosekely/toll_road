@@ -112,6 +112,11 @@ class TollRoad(object):
         for key, val in kwargs.iteritems():
             setattr(self, key, val[0])
 
+    def do_describe(self, *args, **kwargs):
+        ret = {'csv_file': self.csv_file,
+               'commands': [x.split('do_')[-1].replace('_', '-') for x in dir(self) if 'do_' in x]}
+        return json.dumps(ret)
+
 
 class Analyzer(object):
     csv_file = None
@@ -189,6 +194,12 @@ class Analyzer(object):
         for key, val in kwargs.iteritems():
             setattr(self, key, val[0])
         return 'finished analyzer config\n'
+
+    def do_describe(self, *args, **kwargs):
+        ret = {'csv_file': self.csv_file,
+               'commands': [x.split('do_')[-1].replace('_', '-') for x in dir(self) if 'do_' in x]}
+        return json.dumps(ret)
+
 
 ar = Analyzer()
 tr = TollRoad()
