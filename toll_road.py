@@ -17,6 +17,7 @@ import pandas as pd
 import matplotlib.pylab as plt
 import statsmodels.api as sm
 
+import flask
 from flask import Flask
 from flask import request
 
@@ -127,7 +128,13 @@ class Collector(object):
 
 
 class Analyzer(object):
-    csv_file = None
+    _csv = None 
+    csv_file = property(lambda self: self._csv)
+
+    @csv_file.setter
+    def csv_file(self, val):
+        self._csv = val
+        self.extract_data()
 
     def extract_data(self, drop_na=False):
         dateparse = lambda dates: pd.datetime.strptime(dates, '%Y-%m-%d %H:%M:%S.%f')
@@ -186,13 +193,19 @@ class Analyzer(object):
         plt.show(False)
 
     def do_summary(self, *args, **kwargs):
-        return self.df.describe().to_json()
+        return flask.jsonify(self.df.describe().to_dict())
 
     def do_filter(self, *args, **kwargs):
-        return self.filter(**kwargs).to_json(date_format='iso')
+        j = self.filter(**kwargs).to_json(date_format='iso', double_precision=2, date_unit='s')
+        return flask.jsonify(json.loads(j))
+
+    def do_raw_data(self, *args, **kwargs):
+        j = self.df.to_json(date_format='iso', double_precision=2, date_unit='s')
+        return flask.jsonify(json.loads(j))
 
     def do_rolling_mean(self, *args, **kwargs):
-        return self.rolling_mean(**kwargs).to_json(date_format='iso')
+        j = self.rolling_mean(**kwargs).to_json(date_format='iso', double_precision=2, date_unit='s')
+        return flask.jsonify(json.loads(j))
 
     def do_refresh(self, *args, **kwargs):
         self.extract_data()
@@ -206,7 +219,7 @@ class Analyzer(object):
     def do_describe(self, *args, **kwargs):
         ret = {'csv_file': self.csv_file,
                'commands': [x.split('do_')[-1].replace('_', '-') for x in dir(self) if 'do_' in x]}
-        return json.dumps(ret)
+        return flask.jsonify(ret)
 
 
 _ar = Analyzer()
