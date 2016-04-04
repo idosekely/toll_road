@@ -31,6 +31,15 @@ ORIGIN = '32.000955, 34.845297'
 app = Flask(__name__)
 
 
+def parse_arg(arg_name, args, arg_type=None, default_val=None):
+    arg = args.get(arg_name, default_val)
+    if isinstance(arg, list):
+        arg = arg[0]
+    if arg_type:
+        return arg_type(arg)
+    return arg
+
+
 class ServerStopped(Exception):
     pass
 
@@ -142,7 +151,7 @@ class Analyzer(object):
         df['traffic'] = df['traffic'].apply(lambda x: x / 60.)
         self.df = df.resample('T').mean()
         if drop_na:
-            self.df.dropna(inline=True)
+            self.df.dropna(inplace=True)
         else:
             self.df.interpolate(inplace=True)
 
@@ -196,15 +205,31 @@ class Analyzer(object):
         return flask.jsonify(self.df.describe().to_dict())
 
     def do_filter(self, *args, **kwargs):
-        j = self.filter(**kwargs).to_json(date_format='iso', double_precision=2, date_unit='s')
+        as_json = parse_arg('as_json', kwargs, default_val=False)
+        lamb = parse_arg('lamb', kwargs, float, 1e5)
+        orient = parse_arg('orient', kwargs, default_val='columns')
+        j = self.filter(lamb).interpolate().\
+            to_json(date_format='iso', orient=orient, double_precision=2, date_unit='s')
+        if as_json:
+            return j
         return flask.jsonify(json.loads(j))
 
     def do_raw_data(self, *args, **kwargs):
-        j = self.df.to_json(date_format='iso', double_precision=2, date_unit='s')
+        as_json = parse_arg('as_json', kwargs, default_val=False)
+        orient = parse_arg('orient', kwargs, default_val='columns')
+        j = self.df.to_json(date_format='iso', orient=orient, double_precision=2, date_unit='s')
+        if as_json:
+            return j
         return flask.jsonify(json.loads(j))
 
     def do_rolling_mean(self, *args, **kwargs):
-        j = self.rolling_mean(**kwargs).to_json(date_format='iso', double_precision=2, date_unit='s')
+        as_json = parse_arg('as_json', kwargs, default_val=False)
+        window = parse_arg('window', kwargs, int, 10)
+        orient = parse_arg('orient', kwargs, default_val='columns')
+        j = self.rolling_mean(window=window).interpolate().\
+            to_json(date_format='iso', orient=orient, double_precision=2, date_unit='s')
+        if as_json:
+            return j
         return flask.jsonify(json.loads(j))
 
     def do_refresh(self, *args, **kwargs):
@@ -212,8 +237,9 @@ class Analyzer(object):
         return "analyzer refreshed\n"
 
     def do_config(self, *args, **kwargs):
-        for key, val in kwargs.iteritems():
-            setattr(self, key, val[0])
+        for key in kwargs.iterkeys():
+            val = parse_arg(key, kwargs)
+            setattr(self, key, val)
         return 'finished analyzer config\n'
 
     def do_describe(self, *args, **kwargs):
@@ -225,11 +251,13 @@ class Analyzer(object):
 _ar = Analyzer()
 _cr = Collector()
 
+
 def get_parser():
     parser = OptionParser()
     parser.add_option('-a', '--address', dest='host', default='127.0.0.1', help='server hostname')
     parser.add_option('-p', '--port', dest='port', default=5000, help='server port')
     return parser.parse_args()
+
 
 @app.route('/collector/<command>')
 def collector(command):
