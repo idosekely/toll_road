@@ -5,10 +5,13 @@ import sys
 import os
 import json
 
+from optparse import OptionParser
+
 import requests
 from BeautifulSoup import BeautifulSoup
 
-from pytools.asynx import scheduled, threaded
+from pytools.asynx import scheduled
+from threading import Thread
 
 import pandas as pd
 import matplotlib.pylab as plt
@@ -51,8 +54,8 @@ class Collector(object):
 
     @csv_file.setter
     def csv_file(self, csv_file):
-        if not os.path.isfile(csv_file):
-            self._csv = csv_file
+        self._csv = csv_file
+        if not os.path.isfile(self._csv):
             with open(self.csv_file, 'w') as f:
                 writer = csv.DictWriter(f, self.headers)
                 writer.writeheader()
@@ -85,7 +88,6 @@ class Collector(object):
         value = resp['rows'][0]['elements'][0]['duration_in_traffic']['value']
         return int(value)
 
-    @threaded(block=False)
     @scheduled(60)
     def start_sampling(self):
         if not self.started:
@@ -102,8 +104,10 @@ class Collector(object):
         self.save_to_csv(data)
 
     def do_start(self, *args, **kwargs):
-        self.started = True
-        self.start_sampling()
+        if not self.started:
+            self.started = True
+            t = Thread(target=self.start_sampling)
+            t.start()
         return 'collector started\n'
 
     def do_stop(self, *args, **kwargs):
@@ -115,9 +119,9 @@ class Collector(object):
             setattr(self, key, val[0])
         return 'finished collector config\n'
 
-
     def do_describe(self, *args, **kwargs):
         ret = {'csv_file': self.csv_file,
+               'started': self.started,
                'commands': [x.split('do_')[-1].replace('_', '-') for x in dir(self) if 'do_' in x]}
         return json.dumps(ret)
 
@@ -208,6 +212,11 @@ class Analyzer(object):
 _ar = Analyzer()
 _cr = Collector()
 
+def get_parser():
+    parser = OptionParser()
+    parser.add_option('-a', '--address', dest='host', default='127.0.0.1', help='server hostname')
+    parser.add_option('-p', '--port', dest='port', default=5000, help='server port')
+    return parser.parse_args()
 
 @app.route('/collector/<command>')
 def collector(command):
@@ -224,8 +233,9 @@ def analyzer(command):
 
 if __name__ == '__main__':
     print "starting toll road server"
+    options, _ = get_parser()
     try:
-        app.run()
+        app.run(host=options.host, port=options.port)
     except KeyboardInterrupt as e:
         print "shutting down sampling"
         sys.exit(0)
