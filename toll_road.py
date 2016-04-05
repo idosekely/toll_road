@@ -57,6 +57,7 @@ class Collector(object):
     __metaclass__ = Singleton
     headers = ['timestamp', 'price', 'traffic']
     started = False
+    last_update = None
 
     _csv = None
     csv_file = property(lambda self: self._csv)
@@ -112,6 +113,7 @@ class Collector(object):
                 'price': price,
                 'traffic': traffic}
         self.save_to_csv(data)
+        self.last_update = datetime.datetime.now()
 
     def do_start(self, *args, **kwargs):
         if not self.started:
@@ -132,6 +134,7 @@ class Collector(object):
     def do_describe(self, *args, **kwargs):
         ret = {'csv_file': self.csv_file,
                'started': self.started,
+               'last_update': self.last_update,
                'commands': [x.split('do_')[-1].replace('_', '-') for x in dir(self) if 'do_' in x]}
         return json.dumps(ret)
 
@@ -139,6 +142,8 @@ class Collector(object):
 class Analyzer(object):
     _csv = None 
     csv_file = property(lambda self: self._csv)
+    last_update = None
+    df = pd.DataFrame()
 
     @csv_file.setter
     def csv_file(self, val):
@@ -146,6 +151,8 @@ class Analyzer(object):
         self.extract_data()
 
     def extract_data(self, drop_na=False):
+        if not self.csv_file:
+            return
         dateparse = lambda dates: pd.datetime.strptime(dates, '%Y-%m-%d %H:%M:%S.%f')
         df = pd.read_csv(self.csv_file, parse_dates='timestamp', index_col='timestamp', date_parser=dateparse)
         df['traffic'] = df['traffic'].apply(lambda x: x / 60.)
@@ -154,6 +161,7 @@ class Analyzer(object):
             self.df.dropna(inplace=True)
         else:
             self.df.interpolate(inplace=True)
+        self.last_update = datetime.datetime.now()
 
     def rolling_mean(self, window=10):
         means = self.df.rolling(window=window).mean()
@@ -244,6 +252,8 @@ class Analyzer(object):
 
     def do_describe(self, *args, **kwargs):
         ret = {'csv_file': self.csv_file,
+               'last_update': self.last_update,
+               'samples': len(self.df),
                'commands': [x.split('do_')[-1].replace('_', '-') for x in dir(self) if 'do_' in x]}
         return flask.jsonify(ret)
 
