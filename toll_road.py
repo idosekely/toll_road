@@ -136,7 +136,7 @@ class Collector(object):
                'started': self.started,
                'last_update': self.last_update,
                'commands': [x.split('do_')[-1].replace('_', '-') for x in dir(self) if 'do_' in x]}
-        return json.dumps(ret)
+        return flask.jsonify(ret)
 
 
 class Analyzer(object):
