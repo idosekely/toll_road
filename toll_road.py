@@ -4,6 +4,7 @@ from optparse import OptionParser
 
 from flask import Flask
 from flask import request
+from flask import render_template
 
 from model.analyzer import Analyzer
 
@@ -36,6 +37,12 @@ def analyzer(command):
     command = command.replace('-', '_')
     cmd = getattr(_ar, 'do_%s' % command)
     return cmd(**request.args)
+
+@app.route('/analyzer/plot/<command>')
+def plot(command):
+    cmd = getattr(_ar, 'do_%s' % command.replace('-', '_'))
+    cmd(columns_data=True, **request.args)
+    return render_template('chart.html', command=command)
 
 if __name__ == '__main__':
     print "starting toll road server"
