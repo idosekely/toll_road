@@ -24,7 +24,7 @@
             x: {
                 type: 'timeseries',
                 tick: {
-                    format: '%Y-%m-%d %H:%M:%S'
+                    format: '%Y-%m-%d %H:%M'
                 }
             }
         },
@@ -33,6 +33,13 @@
         },
         size: {
             height: 720
+        },
+        zoom: {
+            enabled: true,
+            rescale: true
+        },
+        subchart: {
+            show: true
         }
 
     });

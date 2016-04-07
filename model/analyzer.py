@@ -5,6 +5,7 @@ from matplotlib import pylab as plt
 import pandas as pd
 from statsmodels import api as sm
 from infra import parse_arg
+import math
 
 __author__ = 'sekely'
 
@@ -43,10 +44,11 @@ class Analyzer(object):
 
     def filter(self, lamb=1e5):
         cycle, trend = sm.tsa.filters.hpfilter(self.df, lamb=lamb)
-        cycle.columns = ['%s-cycle' % col for col in cycle.columns]
         trend.columns = ['%s-trend' % col for col in trend.columns]
-        ts = pd.concat([cycle, trend], axis=1)
-        return ts
+        # cycle.columns = ['%s-cycle' % col for col in cycle.columns]
+        # ts = pd.concat([cycle, trend], axis=1)
+        # return ts
+        return trend
 
     @staticmethod
     def plot(ts):
@@ -79,13 +81,15 @@ class Analyzer(object):
         fig.canvas.mpl_connect('pick_event', onpick)
         plt.show(False)
 
-    def columns_data(self, df):
+    def columns_data(self, df, max_samples=2000):
+        sample = '%sT' % int(math.ceil(len(df) / float(max_samples)))
         def _round(x, precision=2):
             try:
                 return round(x, precision)
             except TypeError:
                 return x
-        df = df.applymap(lambda x: _round(x, 2))
+        df = df.resample(sample).applymap(lambda x: _round(x, 2))
+        df.dropna(inplace=True)
         ret_columns = {'timestamp': [str(t) for t in df.index]}
         for col in df.columns:
             ret_columns[col] = list(df[col])

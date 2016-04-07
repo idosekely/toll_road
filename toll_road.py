@@ -38,6 +38,7 @@ def analyzer(command):
     cmd = getattr(_ar, 'do_%s' % command)
     return cmd(**request.args)
 
+
 @app.route('/analyzer/plot/<command>')
 def plot(command):
     cmd = getattr(_ar, 'do_%s' % command.replace('-', '_'))
