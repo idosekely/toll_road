@@ -1,7 +1,8 @@
+from functools import wraps
 __author__ = 'sekely'
 
 
-def parse_arg(arg_name, args, arg_type=None, default_val=None):
+def parse_single_arg(arg_name, args, arg_type=None, default_val=None):
     arg = args.get(arg_name, default_val)
     if isinstance(arg, list):
         arg = arg[0]
@@ -21,3 +22,17 @@ class Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
+
+def parse_args(**k):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            pv = {}
+            for key, val in k.iteritems():
+                arg_type, default_val = val
+                pv[key] = parse_single_arg(key, kwargs, arg_type, default_val)
+            kwargs.update(pv)
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator

@@ -4,7 +4,7 @@ import flask
 from matplotlib import pylab as plt
 import pandas as pd
 from statsmodels import api as sm
-from infra import parse_arg
+from infra import parse_args, parse_single_arg
 import math
 
 __author__ = 'sekely'
@@ -88,7 +88,7 @@ class Analyzer(object):
                 return round(x, precision)
             except TypeError:
                 return x
-        df = df.resample(sample).applymap(lambda x: _round(x, 2))
+        df = df.resample(sample).mean().applymap(lambda x: _round(x, 2))
         df.dropna(inplace=True)
         ret_columns = {'timestamp': [str(t) for t in df.index]}
         for col in df.columns:
@@ -98,33 +98,25 @@ class Analyzer(object):
     def do_summary(self, *args, **kwargs):
         return flask.jsonify(self.df.describe().to_dict())
 
+    @parse_args(columns_data=[None, False], lamb=[float, 1e5], orient=[None, 'columns'])
     def do_filter(self, *args, **kwargs):
-        columns_data = parse_arg('columns_data', kwargs, default_val=False)
-        lamb = parse_arg('lamb', kwargs, float, 1e5)
-        orient = parse_arg('orient', kwargs, default_val='columns')
-        df = self.filter(lamb).interpolate()
+        df = self.filter(kwargs['lamb']).interpolate()
+        return self._process_json(df, kwargs['columns_data'], kwargs['orient'])
+
+    def _process_json(self, df, columns_data, orient):
         if columns_data:
             return flask.jsonify(self.columns_data(df))
         j = df.to_json(date_format='iso', orient=orient, double_precision=2, date_unit='s')
         return flask.jsonify(json.loads(j))
 
+    @parse_args(columns_data=[None, False], orient=[None, 'columns'])
     def do_raw_data(self, *args, **kwargs):
-        columns_data = parse_arg('columns_data', kwargs, default_val=False)
-        orient = parse_arg('orient', kwargs, default_val='columns')
-        if columns_data:
-            return flask.jsonify(self.columns_data(self.df))
-        j = self.df.to_json(date_format='iso', orient=orient, double_precision=2, date_unit='s')
-        return flask.jsonify(json.loads(j))
+        return self._process_json(self.df, kwargs['columns_data'], kwargs['orient'])
 
+    @parse_args(columns_data=[None, False], orient=[None, 'columns'], window=[int, 10])
     def do_rolling_mean(self, *args, **kwargs):
-        columns_data = parse_arg('columns_data', kwargs, default_val=False)
-        window = parse_arg('window', kwargs, int, 10)
-        orient = parse_arg('orient', kwargs, default_val='columns')
-        df = self.rolling_mean(window=window).interpolate()
-        if columns_data:
-            return flask.jsonify(self.columns_data(df))
-        j = df.to_json(date_format='iso', orient=orient, double_precision=2, date_unit='s')
-        return flask.jsonify(json.loads(j))
+        df = self.rolling_mean(window=kwargs['window']).interpolate()
+        return self._process_json(df, kwargs['columns_data'], kwargs['orient'])
 
     def do_refresh(self, *args, **kwargs):
         self.extract_data()
@@ -132,7 +124,7 @@ class Analyzer(object):
 
     def do_config(self, *args, **kwargs):
         for key in kwargs.iterkeys():
-            val = parse_arg(key, kwargs)
+            val = parse_single_arg(key, kwargs)
             setattr(self, key, val)
         return 'finished analyzer config\n'
 
