@@ -103,8 +103,10 @@ class Analyzer(object):
         df = self.filter(kwargs['lamb']).interpolate()
         return self._process_json(df, **kwargs)
 
-    @parse_args(columns_data=[None, False], orient=[None, 'columns'])
+    @parse_args(columns_data=[None, False], orient=[None, 'columns'], from_time=[None, None], to_time=[None, None])
     def _process_json(self, df, **kwargs):
+        from_time, to_time = kwargs['from_time'], kwargs['to_time']
+        df = df[from_time:to_time]
         if kwargs['columns_data']:
             return flask.jsonify(self.columns_data(df))
         j = df.to_json(date_format='iso', orient=kwargs['orient'], double_precision=2, date_unit='s')
