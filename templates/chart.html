@@ -17,7 +17,7 @@
         data: {
             x: 'timestamp',
             xFormat: '%Y-%m-%d %H:%M:%S',
-            url: '/analyzer/{{ command }}?columns_data=true',
+            url: '/analyzer/{{ command }}?request_id={{ req_id }}',
             mimeType: 'json'
         },
         axis: {
