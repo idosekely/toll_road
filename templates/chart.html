@@ -6,15 +6,17 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.10/c3.css" rel="stylesheet" type="text/css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/rome/2.1.22/rome.css" rel="stylesheet" type="text/css">
     <style>
-        html,body {
+        html, body {
             height: 100%;
             width: 100%;
             margin: 0;
         }
+
         #chart {
             height: 70%;
         }
-        #picker{
+
+        #picker {
             text-align: center;
         }
     </style>
@@ -36,6 +38,11 @@
         To Time
         <input id="picker_end" type="text" name="to_time">
     </label>
+    <select name="plot">
+        <option value="raw-data" selected>Raw Data</option>
+        <option value="filter">Trend</option>
+        <option value="rolling-mean">Rolling Mean</option>
+    </select>
     <button id="time_picker" type="submit">Submit</button>
 </form>
 
@@ -60,9 +67,6 @@
         padding: {
             top: 20
         },
-{#        size: {#}
-{#            height: 600#}
-{#        },#}
         zoom: {
             enabled: true,
             rescale: true

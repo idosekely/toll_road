@@ -59,8 +59,9 @@ def analyzer(command):
     return cmd(**kwargs)
 
 
-@app.route('/analyzer/plot/<command>')
-def plot(command):
+@app.route('/plot')
+def plot():
+    command = parse_single_arg('plot', request.args, default_val='raw-data')
     uuid = Request.set_request(request, columns_data=True)
     return render_template('chart.html', command=command, req_id=uuid)
 
