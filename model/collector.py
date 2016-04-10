@@ -9,7 +9,7 @@ import flask
 import requests
 
 from pytools.asynx import scheduled
-from infra import ServerStopped, Singleton
+from infra import ServerStopped, Singleton, safe
 
 __author__ = 'sekely'
 
@@ -64,6 +64,7 @@ class Collector(object):
         return int(value)
 
     @scheduled(60)
+    @safe
     def start_sampling(self):
         if not self.started:
             raise ServerStopped()

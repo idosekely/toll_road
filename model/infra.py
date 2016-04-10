@@ -36,3 +36,16 @@ def parse_args(**k):
             return func(*args, **kwargs)
         return wrapper
     return decorator
+
+def safe(wrapped):
+
+    @wraps(wrapped)
+    def wrapper(*args, **kwargs):
+        try:
+            wrapped(*args, **kwargs)
+        except ServerStopped as e:
+            raise e
+        except Exception as e:
+            print e
+    return wrapper
+
