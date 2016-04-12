@@ -1,7 +1,12 @@
 import datetime
 import json
 import flask
-from matplotlib import pylab as plt
+try:
+    from matplotlib import pylab as plt
+except ImportError:
+    print "error while importing matplotlib"
+    plt = None
+
 import pandas as pd
 from statsmodels import api as sm
 from infra import parse_args, parse_single_arg
@@ -52,6 +57,8 @@ class Analyzer(object):
 
     @staticmethod
     def plot(ts):
+        if not plt:
+            print ""
         fig, ax = plt.subplots()
         lined = dict()
 

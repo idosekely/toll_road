@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 import sys
 from optparse import OptionParser
 from uuid import uuid4
