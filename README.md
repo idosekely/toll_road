@@ -31,5 +31,5 @@ Results
 Future features
 ---------------
 * Move data to DB
-* Move the REST server (like Flask)
-* provide data analyzing API
+* add predictions 
+* move to dedicated server

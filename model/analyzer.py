@@ -11,6 +11,9 @@ import pandas as pd
 from statsmodels import api as sm
 from infra import parse_args, parse_single_arg
 import math
+from threading import Thread
+from pytools.asynx import scheduled
+from distutils.util import strtobool
 
 __author__ = 'sekely'
 
@@ -20,11 +23,27 @@ class Analyzer(object):
     csv_file = property(lambda self: self._csv)
     last_update = None
     df = pd.DataFrame()
+    _auto = True
+    auto_refresh = property(lambda self: self._auto)
+
+    def __init__(self):
+        t = Thread(target=self._auto_refresh)
+        t.start()
+
+    def _str_to_bool(self, val):
+        try:
+            return bool(strtobool(val))
+        except ValueError:
+            return None
 
     @csv_file.setter
     def csv_file(self, val):
         self._csv = val
         self.extract_data()
+
+    @auto_refresh.setter
+    def auto_refresh(self, val):
+        self._auto = self._str_to_bool(val)
 
     def extract_data(self, drop_na=False):
         if not self.csv_file:
@@ -46,6 +65,12 @@ class Analyzer(object):
         ewm_means.columns = ['ewm-%s' % col for col in ewm_means.columns]
         ts = pd.concat([means, ewm_means], axis=1)
         return ts
+
+    @scheduled(60 * 5)  # update the data frame every 5 minutes
+    def _auto_refresh(self):
+        if not self.auto_refresh:
+            return
+        self.extract_data()
 
     def filter(self, lamb=1e5):
         cycle, trend = sm.tsa.filters.hpfilter(self.df, lamb=lamb)
@@ -143,5 +168,6 @@ class Analyzer(object):
         ret = {'csv_file': self.csv_file,
                'last_update': self.last_update,
                'samples': len(self.df),
+               'auto_refresh': self.auto_refresh,
                'commands': [x.split('do_')[-1].replace('_', '-') for x in dir(self) if 'do_' in x]}
         return flask.jsonify(ret)
