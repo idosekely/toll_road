@@ -135,10 +135,32 @@ class Analyzer(object):
         df = self.filter(kwargs['lamb']).interpolate()
         return self._process_json(df, **kwargs)
 
-    @parse_args(columns_data=[None, False], orient=[None, 'columns'], from_time=[None, None], to_time=[None, None])
+    def _time_frame(self, tf):
+        _fmt = '%Y%m%d%H%M'
+        delta = {
+            "last_day": datetime.timedelta(days=1),
+            "last_3_days":datetime.timedelta(days=3),
+            "last_week":datetime.timedelta(days=7),
+            "all": None,
+        }
+        if delta[tf]:
+            now = datetime.datetime.now()
+            to_time = now.strftime(_fmt)
+            from_time = now - delta[tf]
+            from_time = from_time.strftime(_fmt)
+        else:
+            from_time = None
+            to_time = None
+        return from_time, to_time
+
+    @parse_args(columns_data=[None, False], orient=[None, 'columns'],
+                from_time=[None, None], to_time=[None, None], time_frame=[None, None])
     def _process_json(self, df, **kwargs):
+        time_frame = None if not kwargs['time_frame'] else kwargs['time_frame']
         from_time = None if not kwargs['from_time'] else kwargs['from_time']
         to_time = None if not kwargs['to_time'] else kwargs['to_time']
+        if time_frame:
+            from_time, to_time = self._time_frame(time_frame)
         if from_time or to_time:
             df = df[from_time:to_time]
         if kwargs['columns_data']:
