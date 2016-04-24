@@ -139,9 +139,10 @@ class Analyzer(object):
         _fmt = '%Y%m%d%H%M'
         delta = {
             "last_day": datetime.timedelta(days=1),
-            "last_3_days":datetime.timedelta(days=3),
-            "last_week":datetime.timedelta(days=7),
+            "last_3_days": datetime.timedelta(days=3),
+            "last_week": datetime.timedelta(days=7),
             "all": None,
+            "custom": None,
         }
         if delta[tf]:
             now = datetime.datetime.now()
@@ -159,7 +160,7 @@ class Analyzer(object):
         time_frame = None if not kwargs['time_frame'] else kwargs['time_frame']
         from_time = None if not kwargs['from_time'] else kwargs['from_time']
         to_time = None if not kwargs['to_time'] else kwargs['to_time']
-        if time_frame:
+        if time_frame and time_frame != 'custom':
             from_time, to_time = self._time_frame(time_frame)
         if from_time or to_time:
             df = df[from_time:to_time]

@@ -30,14 +30,6 @@
 <h1>Fast lane analyzer</h1>
 
 <form id="picker" action="" method="get">
-    <label>
-        From Time
-        <input id="picker_start" type="text" name="from_time">
-    </label>
-    <label>
-        To Time
-        <input id="picker_end" type="text" name="to_time">
-    </label>
     <select name="plot">
         <option value="raw-data" selected>Raw Data</option>
         <option value="filter">Trend</option>
@@ -47,9 +39,13 @@
         <option value="last_day" selected>Last Day</option>
         <option value="last_3_days" selected>Last 3 days</option>
         <option value="last_week" selected>Last week</option>
+        <option value="custom" selected>Custom</option>
         <option value="all" selected>All</option>
     </select>
     <button id="time_picker" type="submit">Submit</button>
+    <p>
+        <span id="rome_container"></span>
+    </p>
 </form>
 
 <div id="chart"></div>
@@ -86,14 +82,34 @@
 </script>
 
 <script>
-    var start_time = rome(picker_start, {
-        dateValidator: rome.val.beforeEq(picker_end),
-        inputFormat: "YYYYMMDDHHmm"
-    });
+    var selector = document.querySelector('[name="time_frame"]');
+    var rome_cont = document.querySelector('#rome_container');
+    var tpl = '' +
+            '<label>' +
+            'From Time' +
+            '<input id="picker_start" type="text" name="from_time">' +
+            '</label>' +
+            '<label>' +
+            'To Time' +
+            '<input id="picker_end" type="text" name="to_time">' +
+            '</label>';
 
-    var end_time = rome(picker_end, {
-        dateValidator: rome.val.afterEq(picker_start),
-        inputFormat: "YYYYMMDDHHmm"
+    selector.addEventListener('change', function() {
+        if (selector.value === 'custom') {
+            rome_cont.innerHTML = tpl;
+            var start_time = rome(picker_start, {
+                dateValidator: rome.val.beforeEq(picker_end),
+                inputFormat: "YYYYMMDDHHmm"
+            });
+
+            var end_time = rome(picker_end, {
+                dateValidator: rome.val.afterEq(picker_start),
+                inputFormat: "YYYYMMDDHHmm"
+            });
+        } else {
+            rome_cont.innerHTML = '';
+        }
+
     });
 </script>
 
