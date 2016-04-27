@@ -14,13 +14,14 @@ import math
 from threading import Thread
 from pytools.asynx import scheduled
 from distutils.util import strtobool
+from dal import CsvHandler
 
 __author__ = 'sekely'
 
 
 class Analyzer(object):
-    _csv = None
-    csv_file = property(lambda self: self._csv)
+    handler = CsvHandler()
+    csv_file = property(lambda self: self.handler.data_file)
     last_update = None
     df = pd.DataFrame()
     _auto = True
@@ -37,8 +38,8 @@ class Analyzer(object):
             return None
 
     @csv_file.setter
-    def csv_file(self, val):
-        self._csv = val
+    def csv_file(self, f_name):
+        self.handler.data_file = f_name
         self.extract_data()
 
     @auto_refresh.setter
@@ -46,10 +47,9 @@ class Analyzer(object):
         self._auto = self._str_to_bool(val)
 
     def extract_data(self, drop_na=False):
-        if not self.csv_file:
+        if not self.handler.does_exist():
             return
-        dateparse = lambda dates: pd.datetime.strptime(dates, '%Y-%m-%d %H:%M:%S.%f')
-        df = pd.read_csv(self.csv_file, parse_dates='timestamp', index_col='timestamp', date_parser=dateparse)
+        df = self.handler.read_data()
         df['traffic'] = df['traffic'].apply(lambda x: x / 60.)
         self.df = df.resample('T').mean()
         if drop_na:
@@ -188,7 +188,7 @@ class Analyzer(object):
         return 'finished analyzer config\n'
 
     def do_describe(self, *args, **kwargs):
-        ret = {'csv_file': self.csv_file,
+        ret = {'csv_file': self.handler.data_file,
                'last_update': self.last_update,
                'samples': len(self.df),
                'auto_refresh': self.auto_refresh,

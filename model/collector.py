@@ -10,6 +10,7 @@ import requests
 
 from pytools.asynx import scheduled
 from infra import ServerStopped, Singleton, safe
+from dal import CsvHandler, Data
 
 __author__ = 'sekely'
 
@@ -23,26 +24,13 @@ class Collector(object):
     started = False
     last_update = None
 
-    _csv = None
-    csv_file = property(lambda self: self._csv)
+    handler = CsvHandler()
+    csv_file = property(lambda self: self.handler.data_file)
     api_key = None
 
     @csv_file.setter
-    def csv_file(self, csv_file):
-        self._csv = csv_file
-        if not os.path.isfile(self._csv):
-            with open(self.csv_file, 'w') as f:
-                writer = csv.DictWriter(f, self.headers)
-                writer.writeheader()
-
-    def save_to_csv(self, data=None):
-        if not data:
-            data = {'timestamp': str(datetime.datetime.now()),
-                    'key': None,
-                    'values': None}
-        with open(self.csv_file, 'a') as f:
-            writer = csv.DictWriter(f, self.headers)
-            writer.writerow(data)
+    def csv_file(self, f_name):
+        self.handler.data_file = f_name
 
     def get_price(self):
         r = requests.get('https://www.fastlane.co.il/mobile.aspx')
@@ -68,17 +56,14 @@ class Collector(object):
     def start_sampling(self):
         if not self.started:
             raise ServerStopped()
-        ts = str(datetime.datetime.now())
-        price = self.get_price()
+        data = Data()
+        data.price = self.get_price()
         if self.api_key:
-            traffic = self.get_traffic()
+            data.traffic = self.get_traffic()
         else:
-            traffic = None
-        data = {'timestamp': ts,
-                'price': price,
-                'traffic': traffic}
-        self.save_to_csv(data)
-        self.last_update = datetime.datetime.now()
+            data.traffic = None
+        self.handler.save_data(data)
+        self.last_update = data.timestamp
 
     def do_start(self, *args, **kwargs):
         if not self.started:
@@ -97,7 +82,7 @@ class Collector(object):
         return 'finished collector config\n'
 
     def do_describe(self, *args, **kwargs):
-        ret = {'csv_file': self.csv_file,
+        ret = {'csv_file': self.handler.data_file,
                'started': self.started,
                'last_update': self.last_update,
                'commands': [x.split('do_')[-1].replace('_', '-') for x in dir(self) if 'do_' in x]}
