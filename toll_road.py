@@ -16,15 +16,15 @@ from model.infra import parse_single_arg
 from model.collector import Collector
 
 __author__ = 'sekely'
-
-UPLOAD_FOLDER = '/tmp'
 ALLOWED_EXTENSIONS = ['txt', 'csv', 'hdf5']
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config.from_object('config.Production')
+app.config['ROOT_FOLDER'], _ = os.path.split(app.instance_path)
 
 _ar = Analyzer()
 _cr = Collector()
+
 
 class Request(object):
     requests = {}
@@ -113,11 +113,20 @@ def data(command):
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             return "File Saved!\n"
 
+
+def run():
+    csv_path = app.config.get('CSV_PATH')
+    _cr.api_key = app.config.get('API_KEY')
+    _cr.csv_file = csv_path
+    _ar.csv_file = csv_path
+    _cr.do_start()
+    app.run(host=options.host, port=options.port)
+
 if __name__ == '__main__':
     print "starting toll road server"
     options, _ = get_parser()
     try:
-        app.run(host=options.host, port=options.port)
+        run()
     except KeyboardInterrupt as e:
         print "shutting down sampling"
         sys.exit(0)
