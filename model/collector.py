@@ -33,7 +33,7 @@ class Collector(object):
         self.handler.data_file = f_name
 
     def get_price(self):
-        r = requests.get('https://www.fastlane.co.il/mobile.aspx')
+        r = requests.get('https://www.fastlane.co.il/mobile.aspx', verify=False)
         parsed_html = BeautifulSoup(r.content)
         price = parsed_html.find('span', attrs={'id': 'lblPrice'}).text
         return int(price)
@@ -46,7 +46,7 @@ class Collector(object):
             'destinations': DEST
         }
         base_url = 'https://maps.googleapis.com/maps/api/distancematrix/json'
-        r = requests.get(base_url, params=payload)
+        r = requests.get(base_url, params=payload, verify=False)
         resp = json.loads(r.text)
         value = resp['rows'][0]['elements'][0]['duration_in_traffic']['value']
         return int(value)
