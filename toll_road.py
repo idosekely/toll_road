@@ -8,12 +8,12 @@ from flask import Flask
 from flask import request
 from flask import render_template
 from flask import send_from_directory
-from flask import jsonify
 from werkzeug import secure_filename
 
 from model.analyzer import Analyzer
 from model.infra import parse_single_arg
 from model.collector import Collector
+from auth import requires_auth
 
 __author__ = 'sekely'
 ALLOWED_EXTENSIONS = ['txt', 'csv', 'hdf5']
@@ -75,6 +75,7 @@ def plot():
 
 
 @app.route('/data/<command>', methods=['GET', 'POST'])
+@requires_auth
 def data(command):
     def handle_file():
         f_name = request.args.get('file_name')
