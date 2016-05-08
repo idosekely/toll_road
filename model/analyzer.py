@@ -49,13 +49,7 @@ class Analyzer(object):
     def extract_data(self, drop_na=False):
         if not self.handler.does_exist():
             return
-        df = self.handler.read_data()
-        df['traffic'] = df['traffic'].apply(lambda x: x / 60.)
-        self.df = df.resample('T').mean()
-        if drop_na:
-            self.df.dropna(inplace=True)
-        else:
-            self.df.interpolate(inplace=True)
+        self.df = self.handler.read_data()
         self.last_update = datetime.datetime.now()
 
     def rolling_mean(self, window=10):
