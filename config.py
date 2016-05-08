@@ -20,5 +20,5 @@ class Production(BaseConfig):
 
 
 class TestEnv(BaseConfig):
-    UPLOAD_FOLDER = '/tmp'
+    UPLOAD_FOLDER = 'samples'
     CSV_PATH = os.path.join(UPLOAD_FOLDER, BaseConfig.DEFAULT_CSV)
