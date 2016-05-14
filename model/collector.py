@@ -72,6 +72,9 @@ class Collector(object):
             t.start()
         return 'collector started\n'
 
+    def _status(self):
+        return True if datetime.datetime.now() - self.last_update <= datetime.timedelta(minutes=1) else False
+
     def do_stop(self, *args, **kwargs):
         self.started = False
         return 'stopping collector\n'
@@ -85,5 +88,6 @@ class Collector(object):
         ret = {'csv_file': self.handler.data_file,
                'started': self.started,
                'last_update': self.last_update,
-               'commands': [x.split('do_')[-1].replace('_', '-') for x in dir(self) if 'do_' in x]}
+               'commands': [x.split('do_')[-1].replace('_', '-') for x in dir(self) if 'do_' in x],
+               'status': self._status()}
         return flask.jsonify(ret)

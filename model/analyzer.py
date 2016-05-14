@@ -163,6 +163,9 @@ class Analyzer(object):
         j = df.to_json(date_format='iso', orient=kwargs['orient'], double_precision=2, date_unit='s')
         return flask.jsonify(json.loads(j))
 
+    def _status(self):
+        return True if datetime.datetime.now() - self.last_update <= datetime.timedelta(minutes=5) else False
+
     def do_raw_data(self, *args, **kwargs):
         return self._process_json(self.df, **kwargs)
 
@@ -186,5 +189,6 @@ class Analyzer(object):
                'last_update': self.last_update,
                'samples': len(self.df),
                'auto_refresh': self.auto_refresh,
-               'commands': [x.split('do_')[-1].replace('_', '-') for x in dir(self) if 'do_' in x]}
+               'commands': [x.split('do_')[-1].replace('_', '-') for x in dir(self) if 'do_' in x],
+               'status': self._status()}
         return flask.jsonify(ret)
