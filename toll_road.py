@@ -18,12 +18,31 @@ from auth import requires_auth
 __author__ = 'sekely'
 ALLOWED_EXTENSIONS = ['txt', 'csv', 'hdf5']
 
-app = Flask(__name__)
-app.config.from_object('config.Production')
-app.config['ROOT_FOLDER'], _ = os.path.split(app.instance_path)
 
-_ar = Analyzer()
-_cr = Collector()
+class App(Flask):
+
+    def __init__(self, *args, **kwargs):
+        print "init app"
+        super(App, self).__init__(*args, **kwargs)
+        self.config.from_object('config.Production')
+        self.config['ROOT_FOLDER'], _ = os.path.split(self.instance_path)
+        self.setup()
+
+    def setup(self):
+        print 'app config'
+        self._ar = Analyzer()
+        self._cr = Collector()
+        csv_path = self.config.get('CSV_PATH')
+        self._cr.api_key = self.config.get('API_KEY')
+        self._cr.csv_file = csv_path
+        self._ar.csv_file = csv_path
+        self._cr.do_start()
+
+    def run(self, host=None, port=None, debug=None, **options):
+        print "starting app"
+        super(App, self).run(host=host, port=port, debug=debug, **options)
+
+app = App(__name__)
 
 
 class Request(object):
@@ -52,7 +71,7 @@ def get_parser():
 @app.route('/collector/<command>')
 def collector(command):
     command = command.replace('-', '_')
-    cmd = getattr(_cr, 'do_%s' % command)
+    cmd = getattr(app._cr, 'do_%s' % command)
     return cmd(**request.args)
 
 
@@ -63,7 +82,7 @@ def analyzer(command):
     if uuid:
         kwargs = Request.get_request(uuid)
     command = command.replace('-', '_')
-    cmd = getattr(_ar, 'do_%s' % command)
+    cmd = getattr(app._ar, 'do_%s' % command)
     return cmd(**kwargs)
 
 
@@ -81,13 +100,13 @@ def data(command):
         f_name = request.args.get('file_name')
         path = app.config['UPLOAD_FOLDER']
         if not f_name:
-            path, f_name = os.path.split(_cr.csv_file)
+            path, f_name = os.path.split(app._cr.csv_file)
         return path, f_name
 
     def _set_data_file(path, f_name):
         _file = os.path.join(path, f_name)
-        _cr.csv_file = _file
-        _ar.csv_file = _file
+        app._cr.csv_file = _file
+        app._ar.csv_file = _file
 
     def allowed_file(filename):
         return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
@@ -114,20 +133,11 @@ def data(command):
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             return "File Saved!\n"
 
-
-def run():
-    csv_path = app.config.get('CSV_PATH')
-    _cr.api_key = app.config.get('API_KEY')
-    _cr.csv_file = csv_path
-    _ar.csv_file = csv_path
-    _cr.do_start()
-    app.run(host=options.host, port=options.port)
-
 if __name__ == '__main__':
     print "starting toll road server"
     options, _ = get_parser()
     try:
-        run()
+        app.run(host=options.host, port=options.port)
     except KeyboardInterrupt as e:
         print "shutting down sampling"
         sys.exit(0)
